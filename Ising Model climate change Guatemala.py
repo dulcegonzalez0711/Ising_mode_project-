@@ -7,7 +7,7 @@ from matplotlib.colors import ListedColormap
 from typing import Optional, Dict
 
 # =========================================================
-# Dependencia opcional (solo si usas datos de Berkeley Earth)
+# Dependencia opcional
 # =========================================================
 try:
     import pandas as pd
@@ -24,10 +24,10 @@ FAST = True
 J = 1.0
 KB = 1.0
 
-# 🔴 Temperatura única para TODAS las corridas a T fija (dinámica y rampas)
+# Temperatura única para TODAS las corridas a T fija (dinámica y rampas)
 TEMPERATURE = 2.5
 
-# 🔴 Campo externo global para TODAS las corridas estándar
+# Campo externo global para TODAS las corridas estándar
 H_FIELD = 0.0
 
 # Parámetros de tamaño/tiempos de Monte Carlo
@@ -53,7 +53,7 @@ BALANCED_INIT = True                 # 50/50 aleatorio cuando es None
 REALISTIC_INIT = True                # Correr también con sesgo “realista”
 REALISTIC_FRACTION_WARM = 0.60       # 60% cálido (+1) para el caso realista
 
-# Datos externos (opcional, Berkeley Earth Guatemala TAVG Trend)
+# Datos externos 
 USE_BERKELEY_FIELD = False
 BERKELEY_PATH = r"c:\Users\Deltaz\Downloads\guatemala-TAVG-Trend.csv"
 ALPHA_H = 0.5  # factor que convierte anomalía reciente a un h efectivo (si se usa)
@@ -603,3 +603,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
