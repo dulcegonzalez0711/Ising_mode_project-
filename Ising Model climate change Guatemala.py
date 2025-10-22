@@ -1,4 +1,3 @@
-# ising_clima_guatemala.py
 from __future__ import annotations
 import os, math, numpy as np
 import matplotlib.pyplot as plt
@@ -6,31 +5,21 @@ from matplotlib.gridspec import GridSpec
 from matplotlib.colors import ListedColormap
 from typing import Optional, Dict
 
-# =========================================================
-# Dependencia opcional
-# =========================================================
 try:
     import pandas as pd
 except Exception:
     pd = None
 
-# ===========================
-# ---------- Globales -------
-# ===========================
-SPIN_CMAP = ListedColormap(["blue", "red"])  # -1 = azul (frío), +1 = rojo (cálido)
+SPIN_CMAP = ListedColormap(["blue", "red"]) 
 FAST = True
 
-# Constantes del modelo
 J = 1.0
 KB = 1.0
 
-# Temperatura única para TODAS las corridas a T fija (dinámica y rampas)
 TEMPERATURE = 2.5
 
-# Campo externo global para TODAS las corridas estándar
 H_FIELD = 0.0
 
-# Parámetros de tamaño/tiempos de Monte Carlo
 if FAST:
     L = 32
     SWEEPS_EQ = 1500
@@ -53,14 +42,10 @@ BALANCED_INIT = True                 # 50/50 aleatorio cuando es None
 REALISTIC_INIT = True                # Correr también con sesgo “realista”
 REALISTIC_FRACTION_WARM = 0.60       # 60% cálido (+1) para el caso realista
 
-# Datos externos 
 USE_BERKELEY_FIELD = False
 BERKELEY_PATH = r"c:\Users\Deltaz\Downloads\guatemala-TAVG-Trend.csv"
-ALPHA_H = 0.5  # factor que convierte anomalía reciente a un h efectivo (si se usa)
+ALPHA_H = 0.5 
 
-# ===========================
-# --------- Núcleo Ising ----
-# ===========================
 def random_spins(L: int, frac_plus: float | None = None, rng: np.random.Generator | None = None) -> np.ndarray:
     """Crea una malla LxL de espines con fracción +1 controlada (o 50/50 si None)."""
     rng = rng or np.random.default_rng()
@@ -83,8 +68,6 @@ def metropolis_sweeps(
     rng = rng or np.random.default_rng()
     Lx = spins.shape[0]
     n = Lx * Lx
-
-    # Usa SIEMPRE el campo global H_FIELD (opción 1: global por defecto)
     h = H_FIELD
 
     def dE(i: int, j: int) -> float:
@@ -123,9 +106,6 @@ def observables_from_series(M: np.ndarray, E: np.ndarray, T: float) -> Dict[str,
     C = (E2_mean - E_mean**2) / (KB*T**2)
     return {"M": M_mean, "chi": chi, "C": C, "E": E_mean}
 
-# ===========================
-# ---- Ayudantes clima (op) -
-# ===========================
 def _read_berkeley_table(path: str) -> Optional["pd.DataFrame"]:
     if (pd is None) or (not os.path.exists(path)):
         return None
@@ -167,7 +147,7 @@ def climate_series_from_berkeley(path: str) -> Optional[dict]:
     df = _read_berkeley_table(path)
     if df is None:
         return None
-    # Limpieza ética
+
     df = df.dropna(subset=["Mon_Anom", "Mon_Unc"])
     group = df.groupby("Year", as_index=False)[["Mon_Anom","Mon_Unc"]].mean()
     if group.empty:
@@ -193,18 +173,12 @@ def recent_anomaly_from_berkeley(path: str) -> float:
         return float(df["roll12"].dropna().iloc[-1])
     return float(df["Mon_Anom"].dropna().iloc[-1])
 
-# ===========================
-# ---- Mapeo clima -> estado
-# ===========================
 def soft_map_anomaly_to_frac_plus(anomaly_celsius: float) -> float:
     """Mapeo suave de anomalía térmica (°C) a fracción de +1 al inicio."""
     M0 = 0.5 + float(anomaly_celsius) / 4.0
     frac_plus = 0.5 * (1.0 + M0)
     return float(np.clip(frac_plus, 0.05, 0.95))
 
-# ===========================
-# --------- Gráficas --------
-# ===========================
 def plot_initial(spins_init: np.ndarray, frac_plus: float | None, clima_series=None, title_suffix=""):
     fig = plt.figure(figsize=(12, 6.5))
     fig.suptitle(f"Datos Climáticos y Configuración del Sistema {title_suffix}".strip(),
@@ -308,7 +282,6 @@ def plot_dynamics_and_critical(T: float, M_t, E_t, M_eq_samples, Ts_zoom, Ms_zoo
     ax2.set_xlabel("|M|"); ax2.set_ylabel("Densidad")
     ax2.legend()
 
-    # Zoom crítico
     ax3 = plt.subplot(2, 2, 3)
     ax3.plot(Ts_zoom, Ms_zoom, marker="o", label="|M|")
     if Tc_guess: ax3.axvline(Tc_guess, linestyle="--", label=f"Tc = {Tc_guess:.3f}")
@@ -316,7 +289,7 @@ def plot_dynamics_and_critical(T: float, M_t, E_t, M_eq_samples, Ts_zoom, Ms_zoo
     ax3.set_xlabel("Temperatura (J/k_B)"); ax3.set_ylabel("|M|")
     ax3.legend()
 
-    # Diagrama de fases (ilustrativo)
+    # Diagrama de fases
     ax4 = plt.subplot(2, 2, 4)
     T_dense = np.linspace(min(Ts_zoom), max(Ts_zoom), 200)
     Ms_interp = np.interp(T_dense, Ts_zoom, Ms_zoom)
@@ -333,9 +306,6 @@ def plot_dynamics_and_critical(T: float, M_t, E_t, M_eq_samples, Ts_zoom, Ms_zoo
 
     plt.tight_layout(); plt.show()
 
-# ===========================
-# ---- Ejecutores/Experimentos
-# ===========================
 def sweep_temperatures(Ts: np.ndarray, frac_plus_init: float | None = None):
     """Barrido en T para obtener |M|, χ, C y E promedio."""
     Ms, chis, Cs, Es = [], [], [], []
@@ -361,9 +331,6 @@ def run_dynamics_at_T(T: float, frac_plus_init: float | None = None):
     half = max(1, len(M_t)//2)
     return M_t, E_t, M_t[half:]
 
-# -------------------------------------------
-# 50/50 con rampa de h (T fija; override local)
-# -------------------------------------------
 def balanced_ramping_h(L_local: int = None, T_fixed: float = None, h_max: float = 0.8, total_sweeps: int = 800):
     """Evolución desde 50/50 mientras h aumenta linealmente hasta h_max a T fija."""
     L_use = int(L_local or L)
@@ -388,7 +355,7 @@ def balanced_ramping_h(L_local: int = None, T_fixed: float = None, h_max: float 
         return spins
 
     for s in range(1, total_sweeps + 1):
-        spins = one_sweep(spins, T_use, hs[s])  # override local de h
+        spins = one_sweep(spins, T_use, hs[s])
         if s in snap_steps: snaps[s] = spins.copy()
         mags[s] = abs(spins.sum()) / (L_use * L_use)
 
@@ -409,9 +376,6 @@ def balanced_ramping_h(L_local: int = None, T_fixed: float = None, h_max: float 
     ax_bot.grid(True, alpha=0.25)
     plt.tight_layout(); plt.show()
 
-# -------------------------------------------------------
-# Realista (sesgo inicial) con misma rampa de h (override)
-# -------------------------------------------------------
 def realistic_ramping_h(
     L_local: int = None,
     T_fixed: float = None,
@@ -442,7 +406,7 @@ def realistic_ramping_h(
         return spins
 
     for s in range(1, total_sweeps + 1):
-        spins = one_sweep(spins, T_use, hs[s])  # override local de h
+        spins = one_sweep(spins, T_use, hs[s])
         if s in snap_steps: snaps[s] = spins.copy()
         mags[s] = abs(spins.sum()) / (L_use * L_use)
 
@@ -463,9 +427,6 @@ def realistic_ramping_h(
     ax_bot.grid(True, alpha=0.25)
     plt.tight_layout(); plt.show()
 
-# ----------------------------------------------------------------------
-# Realista con datos (init derivada) + rampa h a T fija (override local)
-# ----------------------------------------------------------------------
 def realistic_evolution_with_data(
     L_local: int = None,
     T_fixed: float = None,
@@ -486,9 +447,7 @@ def realistic_evolution_with_data(
     spins = random_spins(L_use, frac_plus=frac_plus0, rng=rng)
     mags, snapshots = [], {}
     for k, h_local in enumerate(h_values):
-        # override local de h dentro de cada etapa
-        # (metropolis_sweeps usa H_FIELD global; aquí aplicamos h_local temporalmente)
-        # Forma simple: parchear H_FIELD global, llamar, y restaurar.
+
         global H_FIELD
         old_h = H_FIELD
         H_FIELD = h_local
@@ -536,7 +495,6 @@ def realistic_evolution_with_data(
     plt.xlabel("h (campo externo)"); plt.ylabel("|M|")
     plt.legend(loc="lower right"); plt.grid(True); plt.tight_layout(); plt.show()
 
-    # Snapshots
     if snapshots:
         plt.figure(figsize=(12, 4))
         keys = sorted(snapshots.keys()); titles = ["Inicio", "Medio", "Final"]
@@ -549,19 +507,15 @@ def realistic_evolution_with_data(
 
     return {"h": h_values, "M": mags, "anom_recent": recent_anom, "frac_plus0": frac_plus0}
 
-# =========================================================
-# -------------------------- MAIN -------------------------
-# =========================================================
 def main():
     global H_FIELD
 
-    # (Opcional) derivar h de datos climáticos si se habilita (y aplicar al GLOBAL)
     h_data = 0.0
     clima_info = None
     if USE_BERKELEY_FIELD and os.path.exists(BERKELEY_PATH):
         try:
             h_data = h_from_berkeley(BERKELEY_PATH)
-            H_FIELD = H_FIELD + h_data  # ✅ actualiza el global una sola vez
+            H_FIELD = H_FIELD + h_data 
             clima_info = climate_series_from_berkeley(BERKELEY_PATH)
         except Exception:
             clima_info = climate_series_from_berkeley(BERKELEY_PATH)
@@ -569,23 +523,19 @@ def main():
         if pd is not None and os.path.exists(BERKELEY_PATH):
             clima_info = climate_series_from_berkeley(BERKELEY_PATH)
 
-    # Estado inicial balanceado y (opcional) realista
     rng0 = np.random.default_rng(1)
     spins_balanced = random_spins(L, frac_plus=None, rng=rng0)
     plot_initial(spins_balanced, frac_plus=None, clima_series=clima_info, title_suffix=" - Guatemala")
 
-    # Barrido en temperatura (termodinámica)
     Ts = np.arange(T_MIN, T_MAX + 1e-9, T_STEP)
     Ms, chis, Cs, Es = sweep_temperatures(Ts, frac_plus_init=None)
     plot_thermo(Ts, Ms, chis, Cs, Es, Tc_guess=2.269, title_suffix="")
 
-    # Dinámica a T fija (usa TEMPERATURE global y H_FIELD global)
     M_t, E_t, M_eq = run_dynamics_at_T(TEMPERATURE, frac_plus_init=None)
     Ts_zoom = np.arange(1.75, 2.40 + 1e-9, 0.05)
     Ms_zoom, _, _, _ = sweep_temperatures(Ts_zoom, frac_plus_init=None)
     plot_dynamics_and_critical(TEMPERATURE, M_t, E_t, M_eq, Ts_zoom, Ms_zoom, Tc_guess=2.269, title_suffix="")
 
-    # Experimentos a T fija (TODOS usan TEMPERATURE global; rampas hacen override local de h)
     balanced_ramping_h(L_local=L, T_fixed=TEMPERATURE, h_max=0.8, total_sweeps=SWEEPS_DYN)
     realistic_ramping_h(L_local=L, T_fixed=TEMPERATURE, h_max=0.8, total_sweeps=SWEEPS_DYN,
                         frac_plus_init=REALISTIC_FRACTION_WARM)
@@ -597,10 +547,8 @@ def main():
         Ms_r, chis_r, Cs_r, Es_r = sweep_temperatures(Ts, frac_plus_init=REALISTIC_FRACTION_WARM)
         plot_thermo(Ts, Ms_r, chis_r, Cs_r, Es_r, Tc_guess=2.269, title_suffix=" - Sistema REALISTA")
 
-    # Evolución realista guiada por datos (override local de h en cada paso)
     realistic_evolution_with_data(L_local=L, T_fixed=TEMPERATURE, steps=V6_STEPS, h_max=0.8,
                                   berkeley_path=BERKELEY_PATH, rng_seed=2025)
 
 if __name__ == "__main__":
     main()
-
